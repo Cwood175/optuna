@@ -1,38 +1,35 @@
 from __future__ import annotations
 
 import math
-from typing import Any
-from typing import Callable
-from typing import cast
-from typing import Dict
-from typing import Optional
-from typing import Sequence
-from typing import Union
 import warnings
+from typing import Any, Callable, Dict, Optional, Sequence, Union, cast
 
 import numpy as np
 
 from optuna._hypervolume import WFG
 from optuna._hypervolume.hssp import _solve_hssp
-from optuna.distributions import BaseDistribution
-from optuna.distributions import CategoricalChoiceType
+from optuna.distributions import BaseDistribution, CategoricalChoiceType
 from optuna.exceptions import ExperimentalWarning
 from optuna.logging import get_logger
-from optuna.samplers._base import _CONSTRAINTS_KEY
-from optuna.samplers._base import _process_constraints_after_trial
-from optuna.samplers._base import BaseSampler
+from optuna.samplers._base import (
+    _CONSTRAINTS_KEY,
+    BaseSampler,
+    _process_constraints_after_trial,
+)
 from optuna.samplers._lazy_random_state import LazyRandomState
 from optuna.samplers._random import RandomSampler
-from optuna.samplers._tpe.parzen_estimator import _ParzenEstimator
-from optuna.samplers._tpe.parzen_estimator import _ParzenEstimatorParameters
+from optuna.samplers._tpe.parzen_estimator import (
+    _ParzenEstimator,
+    _ParzenEstimatorParameters,
+)
 from optuna.search_space import IntersectionSearchSpace
-from optuna.search_space.group_decomposed import _GroupDecomposedSearchSpace
-from optuna.search_space.group_decomposed import _SearchSpaceGroup
+from optuna.search_space.group_decomposed import (
+    _GroupDecomposedSearchSpace,
+    _SearchSpaceGroup,
+)
 from optuna.study import Study
 from optuna.study._study_direction import StudyDirection
-from optuna.trial import FrozenTrial
-from optuna.trial import TrialState
-
+from optuna.trial import FrozenTrial, TrialState
 
 EPS = 1e-12
 _logger = get_logger(__name__)
@@ -78,6 +75,7 @@ class TPESampler(BaseSampler):
       Better Empirical Performance <https://arxiv.org/abs/2304.11127>`_
 
     For multi-objective TPE (MOTPE), please refer to the following papers:
+
     - `Multiobjective Tree-Structured Parzen Estimator for Computationally Expensive Optimization
       Problems <https://dl.acm.org/doi/10.1145/3377930.3389817>`_
     - `Multiobjective Tree-Structured Parzen Estimator <https://doi.org/10.1613/jair.1.13188>`_
@@ -309,7 +307,9 @@ class TPESampler(BaseSampler):
 
         self._multivariate = multivariate
         self._group = group
-        self._group_decomposed_search_space: Optional[_GroupDecomposedSearchSpace] = None
+        self._group_decomposed_search_space: Optional[_GroupDecomposedSearchSpace] = (
+            None
+        )
         self._search_space_group: Optional[_SearchSpaceGroup] = None
         self._search_space = IntersectionSearchSpace(include_pruned=True)
         self._constant_liar = constant_liar
@@ -369,7 +369,9 @@ class TPESampler(BaseSampler):
 
         if self._group:
             assert self._group_decomposed_search_space is not None
-            self._search_space_group = self._group_decomposed_search_space.calculate(study)
+            self._search_space_group = self._group_decomposed_search_space.calculate(
+                study
+            )
             for sub_space in self._search_space_group.search_spaces:
                 # Sort keys because Python's string hashing is nondeterministic.
                 for name, distribution in sorted(sub_space.items()):
@@ -386,7 +388,10 @@ class TPESampler(BaseSampler):
         return search_space
 
     def sample_relative(
-        self, study: Study, trial: FrozenTrial, search_space: Dict[str, BaseDistribution]
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        search_space: Dict[str, BaseDistribution],
     ) -> Dict[str, Any]:
         if self._group:
             assert self._search_space_group is not None
@@ -403,7 +408,10 @@ class TPESampler(BaseSampler):
             return self._sample_relative(study, trial, search_space)
 
     def _sample_relative(
-        self, study: Study, trial: FrozenTrial, search_space: Dict[str, BaseDistribution]
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        search_space: Dict[str, BaseDistribution],
     ) -> Dict[str, Any]:
         if search_space == {}:
             return {}
@@ -459,7 +467,10 @@ class TPESampler(BaseSampler):
         return {k: np.asarray(v) for k, v in values.items()}
 
     def _sample(
-        self, study: Study, trial: FrozenTrial, search_space: Dict[str, BaseDistribution]
+        self,
+        study: Study,
+        trial: FrozenTrial,
+        search_space: Dict[str, BaseDistribution],
     ) -> Dict[str, Any]:
         if self._constant_liar:
             states = [TrialState.COMPLETE, TrialState.PRUNED, TrialState.RUNNING]
@@ -469,7 +480,9 @@ class TPESampler(BaseSampler):
         trials = study._get_trials(deepcopy=False, states=states, use_cache=use_cache)
 
         # We divide data into below and above.
-        n = sum(trial.state != TrialState.RUNNING for trial in trials)  # Ignore running trials.
+        n = sum(
+            trial.state != TrialState.RUNNING for trial in trials
+        )  # Ignore running trials.
         below_trials, above_trials = _split_trials(
             study,
             trials,
@@ -494,12 +507,18 @@ class TPESampler(BaseSampler):
                 below, search_space, self._parzen_estimator_parameters, weights_below
             )
         else:
-            mpe_below = _ParzenEstimator(below, search_space, self._parzen_estimator_parameters)
-        mpe_above = _ParzenEstimator(above, search_space, self._parzen_estimator_parameters)
+            mpe_below = _ParzenEstimator(
+                below, search_space, self._parzen_estimator_parameters
+            )
+        mpe_above = _ParzenEstimator(
+            above, search_space, self._parzen_estimator_parameters
+        )
         samples_below = mpe_below.sample(self._rng.rng, self._n_ei_candidates)
         log_likelihoods_below = mpe_below.log_pdf(samples_below)
         log_likelihoods_above = mpe_above.log_pdf(samples_below)
-        ret = TPESampler._compare(samples_below, log_likelihoods_below, log_likelihoods_above)
+        ret = TPESampler._compare(
+            samples_below, log_likelihoods_below, log_likelihoods_above
+        )
 
         for param_name, dist in search_space.items():
             ret[param_name] = dist.to_external_repr(ret[param_name])
@@ -520,14 +539,14 @@ class TPESampler(BaseSampler):
                 raise ValueError(
                     "The size of the 'samples' and that of the 'score' "
                     "should be same. "
-                    "But (samples.size, score.size) = ({}, {})".format(sample_size, score.size)
+                    f"But (samples.size, score.size) = ({sample_size}, {score.size})"
                 )
             best = np.argmax(score)
             return {k: v[best].item() for k, v in samples.items()}
         else:
             raise ValueError(
                 "The size of 'samples' should be more than 0."
-                "But samples.size = {}".format(sample_size)
+                f"But samples.size = {sample_size}"
             )
 
     @staticmethod
@@ -585,7 +604,9 @@ class TPESampler(BaseSampler):
     ) -> None:
         assert state in [TrialState.COMPLETE, TrialState.FAIL, TrialState.PRUNED]
         if self._constraints_func is not None:
-            _process_constraints_after_trial(self._constraints_func, study, trial, state)
+            _process_constraints_after_trial(
+                self._constraints_func, study, trial, state
+            )
         self._random_sampler.after_trial(study, trial, state, values)
 
 
@@ -593,9 +614,9 @@ def _calculate_nondomination_rank(loss_vals: np.ndarray, n_below: int) -> np.nda
     ranks = np.full(len(loss_vals), -1)
     num_ranked = 0
     rank = 0
-    domination_mat = np.all(loss_vals[:, None, :] >= loss_vals[None, :, :], axis=2) & np.any(
-        loss_vals[:, None, :] > loss_vals[None, :, :], axis=2
-    )
+    domination_mat = np.all(
+        loss_vals[:, None, :] >= loss_vals[None, :, :], axis=2
+    ) & np.any(loss_vals[:, None, :] > loss_vals[None, :, :], axis=2)
     while num_ranked < n_below:
         counts = np.sum((ranks == -1)[None, :] & domination_mat, axis=1)
         num_ranked += np.sum((counts == 0) & (ranks == -1))
@@ -628,11 +649,15 @@ def _split_trials(
             assert False
 
     # We divide data into below and above.
-    below_complete, above_complete = _split_complete_trials(complete_trials, study, n_below)
+    below_complete, above_complete = _split_complete_trials(
+        complete_trials, study, n_below
+    )
     n_below -= len(below_complete)
     below_pruned, above_pruned = _split_pruned_trials(pruned_trials, study, n_below)
     n_below -= len(below_pruned)
-    below_infeasible, above_infeasible = _split_infeasible_trials(infeasible_trials, n_below)
+    below_infeasible, above_infeasible = _split_infeasible_trials(
+        infeasible_trials, n_below
+    )
 
     below_trials = below_complete + below_pruned + below_infeasible
     above_trials = above_complete + above_pruned + above_infeasible + running_trials
@@ -660,7 +685,9 @@ def _split_complete_trials_single_objective(
     if study.direction == StudyDirection.MINIMIZE:
         sorted_trials = sorted(trials, key=lambda trial: cast(float, trial.value))
     else:
-        sorted_trials = sorted(trials, key=lambda trial: cast(float, trial.value), reverse=True)
+        sorted_trials = sorted(
+            trials, key=lambda trial: cast(float, trial.value), reverse=True
+        )
     return sorted_trials[:n_below], sorted_trials[n_below:]
 
 
@@ -701,7 +728,9 @@ def _split_complete_trials_multi_objective(
         worst_point = np.max(rank_i_lvals, axis=0)
         reference_point = np.maximum(1.1 * worst_point, 0.9 * worst_point)
         reference_point[reference_point == 0] = EPS
-        selected_indices = _solve_hssp(rank_i_lvals, rank_i_indices, subset_size, reference_point)
+        selected_indices = _solve_hssp(
+            rank_i_lvals, rank_i_indices, subset_size, reference_point
+        )
         indices_below[last_idx:] = selected_indices
 
     below_trials = []
@@ -733,7 +762,9 @@ def _split_pruned_trials(
     n_below: int,
 ) -> tuple[list[FrozenTrial], list[FrozenTrial]]:
     n_below = min(n_below, len(trials))
-    sorted_trials = sorted(trials, key=lambda trial: _get_pruned_trial_score(trial, study))
+    sorted_trials = sorted(
+        trials, key=lambda trial: _get_pruned_trial_score(trial, study)
+    )
     return sorted_trials[:n_below], sorted_trials[n_below:]
 
 
@@ -794,7 +825,10 @@ def _calculate_weights_below_for_multi_objective(
         hv = WFG().compute(lvals, reference_point)
         indices_mat = ~np.eye(n_below).astype(bool)
         contributions = np.asarray(
-            [hv - WFG().compute(lvals[indices_mat[i]], reference_point) for i in range(n_below)]
+            [
+                hv - WFG().compute(lvals[indices_mat[i]], reference_point)
+                for i in range(n_below)
+            ]
         )
         contributions += EPS
         weights_below = np.clip(contributions / np.max(contributions), 0, 1)
